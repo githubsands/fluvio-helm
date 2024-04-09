@@ -104,6 +104,7 @@ impl InstallArg {
 
         if self.create_namespace {
             command.arg("--create-namespace");
+            command.arg("--install");
         }
 
         if self.develop {
