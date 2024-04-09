@@ -14,6 +14,7 @@ pub struct InstallArg {
     pub name: String,
     pub chart: String,
     pub version: Option<String>,
+    pub create_namespace: bool,
     pub namespace: Option<String>,
     pub opts: Vec<(String, String)>,
     pub values: Vec<PathBuf>,
@@ -26,6 +27,7 @@ impl InstallArg {
             name: name.into(),
             chart: chart.into(),
             version: None,
+            create_namespace: true,
             namespace: None,
             opts: vec![],
             values: vec![],
@@ -36,6 +38,12 @@ impl InstallArg {
     /// set chart version
     pub fn version<S: Into<String>>(mut self, version: S) -> Self {
         self.version = Some(version.into());
+        self
+    }
+
+    /// set to use develop
+    pub fn create_namespace(mut self) -> Self {
+        self.create_namespace = true;
         self
     }
 
@@ -92,6 +100,10 @@ impl InstallArg {
     fn apply_args(&self, command: &mut Command) {
         if let Some(namespace) = &self.namespace {
             command.args(&["--namespace", namespace]);
+        }
+
+        if self.create_namespace {
+            command.arg("--create-namespace");
         }
 
         if self.develop {
