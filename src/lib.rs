@@ -222,7 +222,7 @@ impl From<UninstallArg> for Command {
 }
 
 /// Client to manage helm operations
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct HelmClient {}
 
