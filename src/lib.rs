@@ -17,11 +17,12 @@ pub struct InstallArg {
     pub create_namespace: bool,
     pub namespace: Option<String>,
     pub opts: Vec<(String, String)>,
+    pub args: Vec<[String; 2]>,
     pub values: Vec<PathBuf>,
     pub develop: bool,
 }
 
-impl InstallArg {
+impl<'a> InstallArg {
     pub fn new<N: Into<String>, C: Into<String>>(name: N, chart: C) -> Self {
         Self {
             name: name.into(),
@@ -31,6 +32,7 @@ impl InstallArg {
             namespace: None,
             opts: vec![],
             values: vec![],
+            args: vec![],
             develop: false,
         }
     }
@@ -118,13 +120,17 @@ impl InstallArg {
             command.arg("--values").arg(value_path);
         }
 
+        for args in &self.args {
+            command.arg(args[0].clone()).arg(args[1].clone());
+        }
+
         for (key, val) in &self.opts {
             command.arg("--set").arg(format!("{}={}", key, val));
         }
     }
 }
 
-impl From<InstallArg> for Command {
+impl<'a> From<InstallArg> for Command {
     fn from(arg: InstallArg) -> Self {
         let mut command = Command::new("helm");
         command.args(&["install", &arg.name, &arg.chart]);
