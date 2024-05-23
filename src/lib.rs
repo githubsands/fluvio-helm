@@ -92,7 +92,12 @@ impl<'a> InstallArg {
         command
     }
 
-    pub fn upgrade(&self) -> Command {
+    pub fn upgrade(&self, upgrade_args: Vec<[String; 2]>) -> Command {
+        let mut command = Command::new("helm");
+        for arg in upgrade_args {
+            command.args(arg);
+        }
+
         let mut command = Command::new("helm");
         command.args(&["upgrade", "--install", &self.name, &self.chart]);
         self.apply_args(&mut command);
@@ -129,7 +134,7 @@ impl<'a> InstallArg {
         }
     }
 
-    pub fn add_upgrade_args(&self, args: Vec<[String; 2]>, command: &mut Command) {
+    fn add_upgrade_args(&self, args: Vec<[String; 2]>, command: &mut Command) {
         for arg in &args {
             command.arg(arg[0].clone()).arg(arg[1].clone());
         }
@@ -269,8 +274,12 @@ impl HelmClient {
 
     /// Upgrades the given chart
     #[instrument(skip(self))]
-    pub fn upgrade(&self, args: &InstallArg) -> Result<(), HelmError> {
-        let mut command = args.upgrade();
+    pub fn upgrade(
+        &self,
+        args: &InstallArg,
+        upgrade_args: Vec<[String; 2]>,
+    ) -> Result<(), HelmError> {
+        let mut command = args.upgrade(upgrade_args);
         command.result()?;
         Ok(())
     }
