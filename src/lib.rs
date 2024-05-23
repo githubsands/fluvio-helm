@@ -128,6 +128,12 @@ impl<'a> InstallArg {
             command.arg("--set").arg(format!("{}={}", key, val));
         }
     }
+
+    fn add_upgrade_args(&self, args: Vec<[String; 2]>, command: &mut Command) {
+        for arg in &args {
+            command.arg(arg[0].clone()).arg(arg[1].clone());
+        }
+    }
 }
 
 impl<'a> From<InstallArg> for Command {
