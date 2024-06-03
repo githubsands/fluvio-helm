@@ -20,4 +20,6 @@ pub enum HelmError {
     Serde(#[from] serde_json::Error),
     #[error("Failed to execute a command")]
     Command(#[from] CommandError),
+    #[error("Helm chart version not found: {0}")]
+    HelmChartVersionNotFound(String),
 }
