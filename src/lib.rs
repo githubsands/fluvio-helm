@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::Command as osCommand;
 
 use serde::Deserialize;
 use tracing::{instrument, warn};
@@ -85,26 +85,26 @@ impl<'a> InstallArg {
         self
     }
 
-    pub fn install(&self) -> Command {
-        let mut command = Command::new("helm");
+    pub fn install(&self) -> osCommand {
+        let mut command = osCommand::new("helm");
         command.args(&["install", &self.name, &self.chart]);
         self.apply_args(&mut command);
         command
     }
 
-    pub fn upgrade(&self, upgrade_args: Vec<[String; 2]>) -> Command {
-        let mut command = Command::new("helm");
+    pub fn upgrade(&self, upgrade_args: Vec<[String; 2]>) -> osCommand {
+        let mut command = osCommand::new("helm");
         for arg in upgrade_args {
             command.args(arg);
         }
 
-        let mut command = Command::new("helm");
+        let mut command = osCommand::new("helm");
         command.args(&["upgrade", "--install", &self.name, &self.chart]);
         self.apply_args(&mut command);
         command
     }
 
-    fn apply_args(&self, command: &mut Command) {
+    fn apply_args(&self, command: &mut osCommand) {
         if let Some(namespace) = &self.namespace {
             command.args(&["--namespace", namespace]);
         }
@@ -134,16 +134,16 @@ impl<'a> InstallArg {
         }
     }
 
-    fn add_upgrade_args(&self, args: Vec<[String; 2]>, command: &mut Command) {
+    fn add_upgrade_args(&self, args: Vec<[String; 2]>, command: &mut osCommand) {
         for arg in &args {
             command.arg(arg[0].clone()).arg(arg[1].clone());
         }
     }
 }
 
-impl<'a> From<InstallArg> for Command {
+impl<'a> From<InstallArg> for osCommand {
     fn from(arg: InstallArg) -> Self {
-        let mut command = Command::new("helm");
+        let mut command = osCommand::new("helm");
         command.args(&["install", &arg.name, &arg.chart]);
 
         if let Some(namespace) = &arg.namespace {
@@ -216,9 +216,9 @@ impl UninstallArg {
     }
 }
 
-impl From<UninstallArg> for Command {
+impl From<UninstallArg> for osCommand {
     fn from(arg: UninstallArg) -> Self {
-        let mut command = Command::new("helm");
+        let mut command = osCommand::new("helm");
         command.args(&["uninstall", &arg.release]);
 
         if let Some(namespace) = &arg.namespace {
@@ -247,7 +247,7 @@ impl HelmClient {
     ///
     /// This only succeeds if the helm command can be found.
     pub fn new() -> Result<Self, HelmError> {
-        let output = Command::new("helm").arg("version").result()?;
+        let output = osCommand::new("helm").arg("version").result()?;
 
         // Convert command output into a string
         let out_str = String::from_utf8(output.stdout).map_err(HelmError::Utf8Error)?;
@@ -294,7 +294,7 @@ impl HelmClient {
                 return Ok(());
             }
         }
-        let mut command: Command = uninstall.into();
+        let mut command: osCommand = uninstall.into();
         command.result()?;
         Ok(())
     }
@@ -302,7 +302,7 @@ impl HelmClient {
     /// Adds a new helm repo with the given chart name and chart location
     #[instrument(skip(self))]
     pub fn repo_add(&self, chart: &str, location: &str) -> Result<(), HelmError> {
-        Command::new("helm")
+        osCommand::new("helm")
             .args(&["repo", "add", chart, location])
             .result()?;
         Ok(())
@@ -311,14 +311,14 @@ impl HelmClient {
     /// Updates the local helm repository
     #[instrument(skip(self))]
     pub fn repo_update(&self) -> Result<(), HelmError> {
-        Command::new("helm").args(&["repo", "update"]).result()?;
+        osCommand::new("helm").args(&["repo", "update"]).result()?;
         Ok(())
     }
 
     /// Searches the repo for the named helm chart
     #[instrument(skip(self))]
     pub fn search_repo(&self, chart: &str, version: &str) -> Result<Vec<Chart>, HelmError> {
-        let mut command = Command::new("helm");
+        let mut command = osCommand::new("helm");
         command
             .args(&["search", "repo", chart])
             .args(&["--version", version])
@@ -333,7 +333,7 @@ impl HelmClient {
     /// Get all the available versions
     #[instrument(skip(self))]
     pub fn versions(&self, chart: &str) -> Result<Vec<Chart>, HelmError> {
-        let mut command = Command::new("helm");
+        let mut command = osCommand::new("helm");
         command
             .args(&["search", "repo"])
             .args(&["--versions", chart])
@@ -363,7 +363,7 @@ impl HelmClient {
         namespace: Option<&str>,
     ) -> Result<Vec<InstalledChart>, HelmError> {
         let exact_match = format!("^{}$", name);
-        let mut command = Command::new("helm");
+        let mut command = osCommand::new("helm");
         command
             .arg("list")
             .arg("--filter")
@@ -389,7 +389,7 @@ impl HelmClient {
     /// get helm package version
     #[instrument(skip(self))]
     pub fn get_helm_version(&self) -> Result<String, HelmError> {
-        let helm_version = Command::new("helm")
+        let helm_version = osCommand::new("helm")
             .arg("version")
             .arg("--short")
             .output()
