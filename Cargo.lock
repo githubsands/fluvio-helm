@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "fluvio-command"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82a1ae36b98e5a130177feb586ca70a2a9741d912200dd28fe1c5a89cdadba87"
+source = "git+https://github.com/githubsands/fluvio-command?branch=main#1a0fc64bf8ef12467f46df8e40dbddf5476c77c8"
 dependencies = [
  "thiserror",
  "tracing",
