@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use serde::Deserialize;
-use tracing::{instrument, warn};
+use tracing::{error, instrument, warn};
 
 mod error;
 pub use crate::error::HelmError;
 
-use fluvio_command::CommandExt; // import a trait set for osCommand
+use fluvio_command::{CommandConnectivityError, CommandErrorKind, CommandExt}; // import a trait set for osCommand
 use std::process::Command as osCommand;
 
 /// Installer Argument
@@ -273,16 +273,39 @@ impl HelmClient {
     /// 1. CommandErrorKind::Terminated
     /// 2. CommandErrorKind::ExitError
     ///
-    #[instrument(skip(self))]
+    /// BUG - command error
+    /*
+    pub fn install(&self, args: &InstallArg, updated_args: ) -> Result<(), HelmError> {
+        let mut command = args.install();
+
+        let output = command.result()?;
+
+        command.result().map_err(|err| match err.source {
+            CommandErrorKind::ConnectivityError(CommandConnectivityError::Error(msg)) => {
+                return Err(HelmError::FailedToConnect(msg))
+            }
+            CommandErrorKind::ConnectivityError(CommandConnectivityError::Undefined) => {
+                return Err(HelmError::FailedToConnect("Undefined connectivity error".to_string()))
+            }
+            _ => HelmError::Undefined,
+        });
+        Ok(())
+    }
+    */
+
     pub fn install(&self, args: &InstallArg) -> Result<(), HelmError> {
         let mut command = args.install();
 
-        // run the command and check for helm command errors if we return a exit code 0
-        // no command ran with success -
-        let output = command.result()?;
+        command.result().map_err(|err| match err.source {
+            CommandErrorKind::ConnectivityError(CommandConnectivityError::Error(msg)) => {
+                HelmError::FailedToConnect(msg)
+            }
+            CommandErrorKind::Terminated => HelmError::Command(err),
+            CommandErrorKind::ExitError(_, _) => HelmError::Command(err),
+            CommandErrorKind::IoError(_) => HelmError::Command(err),
+            _ => HelmError::Undefined,
+        })?;
 
-        // check for more helm stderrs
-        check_helm_stderr(output.stderr)?;
         Ok(())
     }
 
@@ -295,11 +318,16 @@ impl HelmClient {
     ) -> Result<(), HelmError> {
         let mut command = args.upgrade(upgrade_args);
 
-        // run the command and check for helm command errors
-        let output = command.result()?;
+        command.result().map_err(|err| match err.source {
+            CommandErrorKind::ConnectivityError(CommandConnectivityError::Error(msg)) => {
+                HelmError::FailedToConnect(msg)
+            }
+            CommandErrorKind::Terminated => HelmError::Command(err),
+            CommandErrorKind::ExitError(_, _) => HelmError::Command(err),
+            CommandErrorKind::IoError(_) => HelmError::Command(err),
+            _ => HelmError::Undefined,
+        })?;
 
-        // check for more helm stderrs
-        check_helm_stderr(output.stderr)?;
         Ok(())
     }
 
@@ -425,6 +453,7 @@ fn check_helm_stderr(stderr: Vec<u8>) -> Result<(), HelmError> {
     if !stderr.is_empty() {
         let stderr = String::from_utf8(stderr)?;
         if stderr.contains("Kubernetes cluster unreachable") {
+            error!("kubernetes cluster unreachable");
             return Err(HelmError::FailedToConnect(stderr.to_string()));
         }
     }
@@ -486,6 +515,6 @@ mod tests {
 
     #[test]
     fn test_extension() {
-        let error = Command::new("ls").arg("does-not-exist").display();
+        let error = osCommand::new("ls").arg("does-not-exist").display();
     }
 }
