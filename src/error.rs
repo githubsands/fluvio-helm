@@ -13,7 +13,7 @@ pub enum HelmError {
     #[error("Failed to read helm client version: {0}")]
     HelmVersionNotFound(String),
     #[error("Failed to connect to Kubernetes")]
-    FailedToConnect,
+    FailedToConnect(String),
     #[error("Failed to parse helm output as UTF8")]
     Utf8Error(#[from] FromUtf8Error),
     #[error("Failed to parse JSON from helm output")]

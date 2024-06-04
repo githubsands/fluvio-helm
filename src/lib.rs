@@ -1,12 +1,13 @@
 use std::path::PathBuf;
-use std::process::Command as osCommand;
 
 use serde::Deserialize;
 use tracing::{instrument, warn};
 
 mod error;
 pub use crate::error::HelmError;
-use fluvio_command::CommandExt;
+
+use fluvio_command::CommandExt; // import a trait set for osCommand
+use std::process::Command as osCommand;
 
 /// Installer Argument
 #[derive(Debug)]
@@ -134,11 +135,13 @@ impl<'a> InstallArg {
         }
     }
 
+    /*
     fn add_upgrade_args(&self, args: Vec<[String; 2]>, command: &mut osCommand) {
         for arg in &args {
             command.arg(arg[0].clone()).arg(arg[1].clone());
         }
     }
+    */
 }
 
 impl<'a> From<InstallArg> for osCommand {
@@ -263,12 +266,23 @@ impl HelmClient {
         Ok(Self {})
     }
 
-    /// Installs the given chart under the given name.
+    /// Installs the given chart under the given name -- it first checks for
+    /// command errors and then checks for stderr for connectivity errors
+    /// command errors include:
+    ///
+    /// 1. CommandErrorKind::Terminated
+    /// 2. CommandErrorKind::ExitError
     ///
     #[instrument(skip(self))]
     pub fn install(&self, args: &InstallArg) -> Result<(), HelmError> {
         let mut command = args.install();
-        command.result()?;
+
+        // run the command and check for helm command errors if we return a exit code 0
+        // no command ran with success -
+        let output = command.result()?;
+
+        // check for more helm stderrs
+        check_helm_stderr(output.stderr)?;
         Ok(())
     }
 
@@ -280,7 +294,12 @@ impl HelmClient {
         upgrade_args: Vec<[String; 2]>,
     ) -> Result<(), HelmError> {
         let mut command = args.upgrade(upgrade_args);
-        command.result()?;
+
+        // run the command and check for helm command errors
+        let output = command.result()?;
+
+        // check for more helm stderrs
+        check_helm_stderr(output.stderr)?;
         Ok(())
     }
 
@@ -406,7 +425,7 @@ fn check_helm_stderr(stderr: Vec<u8>) -> Result<(), HelmError> {
     if !stderr.is_empty() {
         let stderr = String::from_utf8(stderr)?;
         if stderr.contains("Kubernetes cluster unreachable") {
-            return Err(HelmError::FailedToConnect);
+            return Err(HelmError::FailedToConnect(stderr.to_string()));
         }
     }
 
@@ -463,5 +482,10 @@ mod tests {
             .expect("can not grab the first result");
         assert_eq!(test_chart.name, "test_chart");
         assert_eq!(test_chart.chart, "test_chart-1.2.32-rc2");
+    }
+
+    #[test]
+    fn test_extension() {
+        let error = Command::new("ls").arg("does-not-exist").display();
     }
 }
